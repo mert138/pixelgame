@@ -26,11 +26,15 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
+    // Harita ve karakter resimleri
     const mapImg = new Image();
     mapImg.src = "pixilart-drawing.png";
 
     const characterImg = new Image();
     characterImg.src = "karakter.png";
+
+    const characterImgArrow = new Image();
+    characterImgArrow.src = "karakter1.png"; // oklu hali
 
     let char = {
       x: 100,
@@ -62,15 +66,28 @@
     const keys = {
       ArrowLeft: false,
       ArrowRight: false,
-      ArrowUp: false
+      ArrowUp: false,
+      ArrowDown: false
     };
+
+    let arrowReady = false; // ok atma modu
 
     document.addEventListener('keydown', e => {
       if(keys.hasOwnProperty(e.key)) keys[e.key] = true;
+
+      // aşağı ok basılınca ok atma moduna geç
+      if(e.key === "ArrowDown") {
+        arrowReady = true;
+      }
     });
 
     document.addEventListener('keyup', e => {
       if(keys.hasOwnProperty(e.key)) keys[e.key] = false;
+
+      // aşağı ok bırakılınca normal karaktere dön
+      if(e.key === "ArrowDown") {
+        arrowReady = false;
+      }
     });
 
     function update() {
@@ -135,9 +152,14 @@
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(mapImg, 0, 0, mapImg.width, mapImg.height, 0, 0, canvas.width, canvas.height);
 
-      ctx.drawImage(characterImg, char.x, char.y, char.width, char.height);
+      // karakter çizimi: ok atma moduna göre
+      if(arrowReady) {
+        ctx.drawImage(characterImgArrow, char.x, char.y, char.width, char.height);
+      } else {
+        ctx.drawImage(characterImg, char.x, char.y, char.width, char.height);
+      }
 
-      // Platformları ve merdivenleri kontrol için isteğe bağlı görebilirsin
+      // platformları ve merdivenleri kontrol için isteğe bağlı görebilirsin
       // ctx.fillStyle = 'rgba(0,255,0,0.3)';
       // platforms.forEach(p => ctx.fillRect(p.x, p.y, p.width, p.height));
       // ctx.fillStyle = 'rgba(255,0,0,0.3)';
@@ -146,12 +168,15 @@
 
     mapImg.onload = () => {
       characterImg.onload = () => {
-        update();
+        characterImgArrow.onload = () => {
+          update();
+        }
       };
     };
   </script>
 </body>
 </html>
+
 
 
 
