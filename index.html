@@ -17,165 +17,180 @@
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
+<canvas id="gameCanvas"></canvas>
 
-  <script>
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-    // Harita ve karakter resimleri
-    const mapImg = new Image();
-    mapImg.src = "pixilart-drawing.png";
+// Resimler
+const mapImg = new Image();
+mapImg.src = "pixilart-drawing.png";
 
-    const characterImg = new Image();
-    characterImg.src = "karakter.png";
+const characterImg = new Image();
+characterImg.src = "karakter.png";
 
-    const characterImgArrow = new Image();
-    characterImgArrow.src = "karakter1.png"; // oklu hali
+const characterImgArrow = new Image();
+characterImgArrow.src = "karakter1.png";
 
-    let char = {
-      x: 100,
-      y: canvas.height - 150,
-      width: 50,
-      height: 50,
-      dx: 0,
-      dy: 0,
-      speed: 5,
-      jumpPower: 15,
-      onGround: false
-    };
+const arrowImg = new Image();
+arrowImg.src = "ok.png";
 
-    const gravity = 0.8;
+// Karakter objesi
+let char = {
+  x: 100,
+  y: canvas.height - 150,
+  width: 50,
+  height: 50,
+  dx: 0,
+  dy: 0,
+  speed: 5,
+  jumpPower: 15,
+  onGround: false
+};
 
-    // Platformlar (çim, kale bloğu)
-    const platforms = [
-      {x:0, y:canvas.height - 100, width: canvas.width, height: 100}, // çim
-      {x:0, y:canvas.height - 330, width: 470, height: 20}, // kale platform
-      {x:1450, y:canvas.height - 330, width: 470, height: 20}, // kale platform
-    ];
+const gravity = 0.8;
 
-    // Merdivenlar
-    const ladders = [
-      {x:55, y:canvas.height - 330, width: 50, height: 200},
-      {x:1800, y:canvas.height - 330, width: 50, height: 200},// kale merdiveni
-    ];
+// Platformlar
+const platforms = [
+  {x:0, y:canvas.height - 100, width: canvas.width, height: 100},
+  {x:0, y:canvas.height - 330, width: 470, height: 20},
+  {x:1450, y:canvas.height - 330, width: 470, height: 20},
+];
 
-    const keys = {
-      ArrowLeft: false,
-      ArrowRight: false,
-      ArrowUp: false,
-      ArrowDown: false
-    };
+// Merdivenlar
+const ladders = [
+  {x:55, y:canvas.height - 330, width: 50, height: 200},
+  {x:1800, y:canvas.height - 330, width: 50, height: 200},
+];
 
-    let arrowReady = false; // ok atma modu
+const keys = {
+  ArrowLeft: false,
+  ArrowRight: false,
+  ArrowUp: false,
+  ArrowDown: false
+};
 
-    document.addEventListener('keydown', e => {
-      if(keys.hasOwnProperty(e.key)) keys[e.key] = true;
+let arrowReady = false; 
+let arrowChargeStart = 0; // basılma zamanı
+let arrows = []; // fırlatılmış oklar
 
-      // aşağı ok basılınca ok atma moduna geç
-      if(e.key === "ArrowDown") {
-        arrowReady = true;
-      }
+document.addEventListener('keydown', e => {
+  if(keys.hasOwnProperty(e.key)) keys[e.key] = true;
+
+  if(e.key === "ArrowDown" && !arrowReady) {
+    arrowReady = true;
+    arrowChargeStart = Date.now();
+  }
+});
+
+document.addEventListener('keyup', e => {
+  if(keys.hasOwnProperty(e.key)) keys[e.key] = false;
+
+  if(e.key === "ArrowDown" && arrowReady) {
+    arrowReady = false;
+    let holdTime = (Date.now() - arrowChargeStart) / 1000; // saniye
+    if(holdTime > 3) holdTime = 3; // maksimum 3 sn
+    let speed = 10 + (holdTime / 3) * 20; // minimum 10, maksimum 30 hız
+    // ok objesi ekle
+    arrows.push({
+      x: char.x + char.width / 2,
+      y: char.y + char.height / 2,
+      dx: speed,
+      dy: 0
     });
+  }
+});
 
-    document.addEventListener('keyup', e => {
-      if(keys.hasOwnProperty(e.key)) keys[e.key] = false;
+function update() {
+  char.dx = 0;
+  if(keys.ArrowLeft) char.dx = -char.speed;
+  if(keys.ArrowRight) char.dx = char.speed;
 
-      // aşağı ok bırakılınca normal karaktere dön
-      if(e.key === "ArrowDown") {
-        arrowReady = false;
-      }
-    });
+  // merdivende yukarı çıkma
+  let onLadder = false;
+  ladders.forEach(l => {
+    if(char.x + char.width > l.x &&
+       char.x < l.x + l.width &&
+       char.y + char.height > l.y &&
+       char.y < l.y + l.height) {
+      onLadder = true;
+    }
+  });
 
-    function update() {
-      char.dx = 0;
-
-      // yatay hareket
-      if(keys.ArrowLeft) char.dx = -char.speed;
-      if(keys.ArrowRight) char.dx = char.speed;
-
-      // merdivende yukarı çıkma
-      let onLadder = false;
-      ladders.forEach(l => {
-        if(char.x + char.width > l.x &&
-           char.x < l.x + l.width &&
-           char.y + char.height > l.y &&
-           char.y < l.y + l.height) {
-          onLadder = true;
-        }
-      });
-
-      if(onLadder && keys.ArrowUp) {
-        char.dy = -char.speed; // yukarı çık
-      } else {
-        // zıplama
-        if(keys.ArrowUp && char.onGround) {
-          char.dy = -char.jumpPower;
-          char.onGround = false;
-        }
-        // yerçekimi
-        char.dy += gravity;
-      }
-
-      // yeni konum
-      char.x += char.dx;
-      char.y += char.dy;
-
-      // platform çarpışmaları
+  if(onLadder && keys.ArrowUp) {
+    char.dy = -char.speed;
+  } else {
+    if(keys.ArrowUp && char.onGround) {
+      char.dy = -char.jumpPower;
       char.onGround = false;
-      platforms.forEach(p => {
-        if(char.x + char.width > p.x &&
-           char.x < p.x + p.width &&
-           char.y + char.height > p.y &&
-           char.y + char.height < p.y + p.height + char.dy) {
-          char.y = p.y - char.height;
-          char.dy = 0;
-          char.onGround = true;
-        }
-      });
-
-      // ekran kenarlarına sınır
-      if(char.x < 0) char.x = 0;
-      if(char.x + char.width > canvas.width) char.x = canvas.width - char.width;
-      if(char.y < 0) char.y = 0;
-      if(char.y + char.height > canvas.height) char.y = canvas.height - char.height;
-
-      draw();
-      requestAnimationFrame(update);
     }
+    char.dy += gravity;
+  }
 
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(mapImg, 0, 0, mapImg.width, mapImg.height, 0, 0, canvas.width, canvas.height);
+  char.x += char.dx;
+  char.y += char.dy;
 
-      // karakter çizimi: ok atma moduna göre
-      if(arrowReady) {
-        ctx.drawImage(characterImgArrow, char.x, char.y, char.width, char.height);
-      } else {
-        ctx.drawImage(characterImg, char.x, char.y, char.width, char.height);
+  char.onGround = false;
+  platforms.forEach(p => {
+    if(char.x + char.width > p.x &&
+       char.x < p.x + p.width &&
+       char.y + char.height > p.y &&
+       char.y + char.height < p.y + p.height + char.dy) {
+      char.y = p.y - char.height;
+      char.dy = 0;
+      char.onGround = true;
+    }
+  });
+
+  if(char.x < 0) char.x = 0;
+  if(char.x + char.width > canvas.width) char.x = canvas.width - char.width;
+  if(char.y < 0) char.y = 0;
+  if(char.y + char.height > canvas.height) char.y = canvas.height - char.height;
+
+  // okları hareket ettir
+  arrows.forEach(a => {
+    a.x += a.dx;
+  });
+
+  draw();
+  requestAnimationFrame(update);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(mapImg, 0, 0, mapImg.width, mapImg.height, 0, 0, canvas.width, canvas.height);
+
+  // karakter çizimi
+  if(arrowReady) {
+    ctx.drawImage(characterImgArrow, char.x, char.y, char.width, char.height);
+  } else {
+    ctx.drawImage(characterImg, char.x, char.y, char.width, char.height);
+  }
+
+  // okları çiz
+  arrows.forEach(a => {
+    ctx.drawImage(arrowImg, a.x, a.y, 30, 10); // ok boyutu
+  });
+}
+
+mapImg.onload = () => {
+  characterImg.onload = () => {
+    characterImgArrow.onload = () => {
+      arrowImg.onload = () => {
+        update();
       }
-
-      // platformları ve merdivenleri kontrol için isteğe bağlı görebilirsin
-      // ctx.fillStyle = 'rgba(0,255,0,0.3)';
-      // platforms.forEach(p => ctx.fillRect(p.x, p.y, p.width, p.height));
-      // ctx.fillStyle = 'rgba(255,0,0,0.3)';
-      // ladders.forEach(l => ctx.fillRect(l.x, l.y, l.width, l.height));
     }
-
-    mapImg.onload = () => {
-      characterImg.onload = () => {
-        characterImgArrow.onload = () => {
-          update();
-        }
-      };
-    };
-  </script>
+  };
+};
+</script>
 </body>
 </html>
+
 
 
 
