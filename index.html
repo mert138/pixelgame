@@ -6,25 +6,43 @@
   <style>
     body {
       margin: 0;
-      background: #111; /* arka plan koyu */
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+      background: #111;
+      overflow: hidden;
     }
-    img {
-      image-rendering: pixelated; /* resmi net göster */
-      image-rendering: crisp-edges;
-      max-width: 100%;  /* ekran genişliğine sığsın */
-      height: auto;
+    canvas {
+      width: 100vw;   /* ekran genişliği kadar */
+      height: 100vh;  /* ekran yüksekliği kadar */
+      image-rendering: pixelated; /* pikselleri net göster */
     }
   </style>
 </head>
 <body>
-  <!-- Buraya kendi resminin adını yaz -->
-  <img src="pixilart-drawing.png" alt="Oyun Haritası">
+  <canvas id="gameCanvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // ekran boyutunu ayarla
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const img = new Image();
+    img.src = "pixilart-drawing.png"; // senin haritan
+
+    img.onload = () => {
+      // resmi ekrana tam sığacak şekilde pikselli büyüt
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(
+        img,
+        0, 0, img.width, img.height,   // orijinal boyut
+        0, 0, canvas.width, canvas.height // ekrana yay
+      );
+    };
+  </script>
 </body>
 </html>
+
 
 
 
