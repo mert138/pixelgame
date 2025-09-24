@@ -100,7 +100,7 @@ document.addEventListener('keyup', e => {
       x: char.x + char.width / 2,
       y: char.y + char.height / 2,
       dx: speed,
-      dy: 0
+      dy: -2 // hafif yukarı başlangıç
     });
   }
 });
@@ -151,9 +151,12 @@ function update() {
   if(char.y < 0) char.y = 0;
   if(char.y + char.height > canvas.height) char.y = canvas.height - char.height;
 
-  // okları hareket ettir
+  // okları hareket ettir ve yerçekimi uygula
+  const arrowGravity = 0.5;
   arrows.forEach(a => {
     a.x += a.dx;
+    a.y += a.dy;
+    a.dy += arrowGravity;
   });
 
   draw();
@@ -174,8 +177,14 @@ function draw() {
 
   // okları çiz
   arrows.forEach(a => {
-    ctx.drawImage(arrowImg, a.x, a.y, 30, 10); // ok boyutu
+    ctx.drawImage(arrowImg, a.x, a.y, 30, 10);
   });
+
+  // platformları ve merdivenleri kontrol için isteğe bağlı görebilirsin
+  // ctx.fillStyle = 'rgba(0,255,0,0.3)';
+  // platforms.forEach(p => ctx.fillRect(p.x, p.y, p.width, p.height));
+  // ctx.fillStyle = 'rgba(255,0,0,0.3)';
+  // ladders.forEach(l => ctx.fillRect(l.x, l.y, l.width, l.height));
 }
 
 mapImg.onload = () => {
@@ -190,6 +199,7 @@ mapImg.onload = () => {
 </script>
 </body>
 </html>
+
 
 
 
