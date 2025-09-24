@@ -1,239 +1,52 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Pixel Harita</title>
-<style>
-  html,body { height:100%; margin:0; background:#111; }
-  canvas { display:block; width:100vw; height:100vh; image-rendering: pixelated; }
-  /* küçük ekranlarda yazı */
-  #hint {
-    position: fixed; left:10px; bottom:10px; color:#ddd; font-family:monospace;
-    background:rgba(0,0,0,0.5); padding:6px 8px; border-radius:6px; font-size:13px;
-  }
-</style>
+  <meta charset="UTF-8">
+  <title>Benim Oyunum</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      image-rendering: pixelated; /* pixel görünümünü korur */
+    }
+  </style>
 </head>
 <body>
-<canvas id="screen"></canvas>
-<div id="hint">Tam ekran pixel harita — pencereyi yeniden boyutlandır</div>
+<canvas id="game"></canvas>
 
 <script>
-(() => {
-  const canvas = document.getElementById('screen');
-  const ctx = canvas.getContext('2d');
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-  // Pixel-art için "logical" düşük çözünürlük
-  let tile = 16; // tile boyutu (pixel art çözünürlüğü)
-  let cols, rows, L, W, H;
+// pencereye göre ayarlama
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  drawMap();
+}
+window.addEventListener("resize", resize);
 
-  function resize() {
-    // canvas'ı CSS ile tam ekrana ayarla (pixelated görünüm için mantıksal boyutu hesapla)
-    canvas.width = Math.floor(window.innerWidth / 1); // fiziksel canvas çözünürlüğü
-    canvas.height = Math.floor(window.innerHeight / 1);
+// harita resmi yükle
+const mapImg = new Image();
+mapImg.src = "pixilart-drawing.png"; // senin harita dosyan
 
-    // mantıksal tile tabanlı grid - tam ekranı kapsayacak şekilde
-    cols = Math.ceil(canvas.width / tile);
-    rows = Math.ceil(canvas.height / tile);
-    L = cols; W = cols;
-    H = rows;
-    render();
-  }
+function drawMap() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // resmi tam ekrana ölçekle
+  ctx.drawImage(mapImg, 0, 0, canvas.width, canvas.height);
+}
 
-  window.addEventListener('resize', resize);
-
-  // Basit renk paleti
-  const colors = {
-    grassTop: '#4caf50',
-    grassShade: '#3e8e3a',
-    dirt: '#8b5a2b',
-    dirtDark: '#6f4321',
-    water: '#4aa3ff',
-    waterDark: '#2f85d6',
-    bridge: '#8b6b45',
-    stone: '#8c8c8c',
-    stoneDark: '#6f6f6f',
-    wood: '#7a4a1f',
-    door: '#5d3416',
-    castleInner: '#c9b79c',
-    roof: '#aa3333',
-    torch: '#ffcc33',
-    window: '#f7f7ff',
-  };
-
-  // Helper: draw a single tile at grid coords (gx,gy) with color
-  function rect(gx, gy, color) {
-    ctx.fillStyle = color;
-    ctx.fillRect(gx * tile, gy * tile, tile, tile);
-  }
-
-  // Draw grass with slight pixel pattern
-  function drawGrassRow(y) {
-    for (let x = 0; x < cols; x++) {
-      // top of ground: grassTop, with some darker pixels
-      rect(x, y, (x + y) % 3 === 0 ? colors.grassShade : colors.grassTop);
-      // below: dirt
-      rect(x, y + 1, (x + y) % 4 === 0 ? colors.dirtDark : colors.dirt);
-    }
-  }
-
-  // Draw dirt deeper rows (for "ground" thickness)
-  function drawDirtRow(y) {
-    for (let x = 0; x < cols; x++) rect(x, y, colors.dirt);
-  }
-
-  // Draw the central water band
-  function drawWaterBand(leftCol, rightCol, topRow, bottomRow) {
-    for (let x = leftCol; x <= rightCol; x++) {
-      for (let y = topRow; y <= bottomRow; y++) {
-        // small ripple pattern
-        const shade = (x + y) % 3 === 0 ? colors.waterDark : colors.water;
-        rect(x, y, shade);
-      }
-    }
-  }
-
-  // Draw bridge across water (at specific row)
-  function drawBridgeAt(row, left, right) {
-    for (let x = left; x <= right; x++) {
-      // deck planks pattern
-      rect(x, row, (x % 2 === 0) ? colors.bridge : colors.wood);
-      // supports under bridge (two tiles thick)
-      rect(x, row + 1, colors.water); // keep water under, but draw supports at intervals
-      if (x % 3 === 0) {
-        rect(x, row + 1, colors.stone); // stone support
-        rect(x, row + 2, colors.stone); // extend down
-      }
-    }
-  }
-
-  // Draw a castle occupying columns [cx, cx + width-1]
-  // Interiors are visible: floor, a bed, table, torches
-  function drawCastle(cx, width, groundTopRow, facing='left') {
-    const castleTop = groundTopRow - 6; // castle height
-    const castleBottom = groundTopRow - 1;
-
-    // Walls & floor
-    for (let x = cx; x < cx + width; x++) {
-      for (let y = castleTop; y <= castleBottom; y++) {
-        // outer walls: darker stone
-        const isWallEdge = (x === cx || x === cx + width - 1);
-        const isTop = (y === castleTop);
-        if (isWallEdge || isTop) {
-          rect(x, y, colors.stoneDark);
-        } else {
-          // interior floor / room space
-          rect(x, y, colors.castleInner);
-        }
-      }
-    }
-
-    // Battlements (roof crenellations)
-    for (let x = cx; x < cx + width; x += 2) {
-      rect(x, castleTop - 1, colors.stone);
-    }
-
-    // Windows on wall
-    const winY = castleTop + 1;
-    rect(cx + Math.floor(width/2), winY, colors.window);
-    if (width >= 8) rect(cx + Math.floor(width/2) - 2, winY+1, colors.window);
-
-    // Door (open) at ground level -> show inner floor continuing
-    const doorX = (facing === 'left') ? cx + width - 1 : cx;
-    // change that wall tile to door color and leave opening downwards
-    rect(doorX, castleBottom, colors.door);
-    rect(doorX, castleBottom - 1, colors.castleInner);
-
-    // Some interior items: bed, table, torch
-    // bed: small rectangle
-    const bedX = (facing === 'left') ? cx + 1 : cx + width - 3;
-    const bedY = castleBottom - 1;
-    rect(bedX, bedY, '#b22222'); // mattress
-    rect(bedX, bedY - 1, '#8b0000');
-
-    // table: two tiles
-    const tableX = cx + Math.floor(width/2) - 1;
-    const tableY = castleBottom - 1;
-    rect(tableX, tableY, '#c68642');
-    rect(tableX+1, tableY, '#c68642');
-
-    // torch near wall
-    const torchX = (facing === 'left') ? cx + width - 2 : cx + 1;
-    const torchY = castleTop + 2;
-    rect(torchX, torchY, colors.torch);
-
-    // small flag/roof accent
-    rect(cx + Math.floor(width/2), castleTop - 2, colors.roof);
-  }
-
-  // Main render function
-  function render() {
-    // clear
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    // For crisp pixel-art, draw everything on a small offscreen canvas and scale up.
-    // But here we directly use canvas with integer tile sizes and image-rendering: pixelated in CSS.
-
-    // Choose ground area: grass at bottom third
-    const groundTopRow = Math.floor(rows * 0.65); // row where grass top begins
-    // Draw sky (simple gradient by filling above)
-    for (let y = 0; y < groundTopRow - 6; y++) {
-      // sky gradient
-      const t = y / (groundTopRow - 6);
-      // linear interpolate between dark blue to light cyan-ish
-      const r = Math.floor(10 + 80 * (1 - t));
-      const g = Math.floor(20 + 140 * (1 - t));
-      const b = Math.floor(60 + 160 * (1 - t));
-      ctx.fillStyle = `rgb(${r},${g},${b})`;
-      ctx.fillRect(0, y * tile, cols * tile, tile);
-    }
-
-    // Draw ground: grass top + some dirt layers under
-    drawGrassRow(groundTopRow);
-    // draw a few dirt rows below to make depth
-    for (let i = 1; i <= 4; i++) drawDirtRow(groundTopRow + i);
-
-    // Central water band
-    const waterWidth = Math.floor(cols * 0.3);
-    const leftWater = Math.floor((cols - waterWidth) / 2);
-    const rightWater = leftWater + waterWidth - 1;
-    const waterTop = groundTopRow - 2;
-    const waterBottom = groundTopRow + 1;
-    drawWaterBand(leftWater, rightWater, waterTop, waterBottom);
-
-    // Draw bridge across the water around center row
-    const bridgeRow = waterTop + 1; // bridge is on the water top
-    const bridgeLeft = leftWater;
-    const bridgeRight = rightWater;
-    drawBridgeAt(bridgeRow, bridgeLeft, bridgeRight);
-
-    // Left castle at extreme left
-    const castleWidth = Math.max(8, Math.floor(cols * 0.14));
-    drawCastle(1, castleWidth, groundTopRow, 'right');
-
-    // Right castle at extreme right
-    drawCastle(cols - castleWidth - 1, castleWidth, groundTopRow, 'left');
-
-    // Small decorative stones and bushes on grass
-    for (let i = 0; i < Math.floor(cols * 0.04); i++) {
-      const x = Math.floor(Math.random() * cols);
-      const y = groundTopRow - 1;
-      if (x < 3 || x > cols - 4) continue;
-      rect(x, y, '#2e8b57');
-    }
-
-    // Optional: draw pixel grid (off). For debug uncomment:
-    // ctx.strokeStyle = 'rgba(0,0,0,0.05)'; for (let x=0;x<=cols;x++) ctx.strokeRect(x*tile,0,1,rows*tile);
-  }
-
-  // Initial resize + render
-  resize();
-
-  // static map, but re-render on click to reposition tiny decor randomness
-  canvas.addEventListener('click', render);
-
-})();
+mapImg.onload = () => {
+  resize(); // resim yüklenince çiz
+};
 </script>
 </body>
 </html>
+
 
