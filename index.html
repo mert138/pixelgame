@@ -8,16 +8,48 @@
       margin: 0;
       background: #111;
       overflow: hidden;
+      user-select: none;
     }
     canvas {
       width: 100vw;   
       height: 100vh;  
       image-rendering: pixelated; 
+      display: block;
+    }
+    /* Tuşların stili */
+    .control {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      display: grid;
+      grid-template-columns: 50px 50px 50px;
+      grid-template-rows: 50px 50px 50px;
+      gap: 5px;
+    }
+    .button {
+      width: 50px;
+      height: 50px;
+      background: rgba(255,255,255,0.3);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+      font-size: 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      user-select: none;
     }
   </style>
 </head>
 <body>
+
 <canvas id="gameCanvas"></canvas>
+
+<!-- Yön tuşları -->
+<div class="control">
+  <div></div><div class="button" id="up">↑</div><div></div>
+  <div class="button" id="left">←</div><div class="button" id="down">↓</div><div class="button" id="right">→</div>
+</div>
 
 <script>
 const canvas = document.getElementById("gameCanvas");
@@ -75,9 +107,10 @@ const keys = {
 };
 
 let arrowReady = false; 
-let arrowChargeStart = 0; // basılma zamanı
-let arrows = []; // fırlatılmış oklar
+let arrowChargeStart = 0;
+let arrows = [];
 
+// Klavye olayları
 document.addEventListener('keydown', e => {
   if(keys.hasOwnProperty(e.key)) keys[e.key] = true;
 
@@ -92,17 +125,31 @@ document.addEventListener('keyup', e => {
 
   if(e.key === "ArrowDown" && arrowReady) {
     arrowReady = false;
-    let holdTime = (Date.now() - arrowChargeStart) / 1000; // saniye
-    if(holdTime > 3) holdTime = 3; // maksimum 3 sn
-    let speed = 10 + (holdTime / 3) * 20; // minimum 10, maksimum 30 hız
+    let holdTime = (Date.now() - arrowChargeStart) / 1000;
+    if(holdTime > 3) holdTime = 3;
+    let speed = 10 + (holdTime / 3) * 20;
     arrows.push({
       x: char.x + char.width / 2,
       y: char.y + char.height / 2,
       dx: speed,
-      dy: -3 // başlangıç yukarı hızı
+      dy: -3
     });
   }
 });
+
+// Mouse ile tuşlara tıklama
+function setupButton(id, keyName) {
+  const btn = document.getElementById(id);
+  btn.addEventListener('mousedown', () => keys[keyName] = true);
+  btn.addEventListener('mouseup', () => keys[keyName] = false);
+  btn.addEventListener('touchstart', e => { e.preventDefault(); keys[keyName] = true; });
+  btn.addEventListener('touchend', e => { e.preventDefault(); keys[keyName] = false; });
+}
+
+setupButton("up", "ArrowUp");
+setupButton("down", "ArrowDown");
+setupButton("left", "ArrowLeft");
+setupButton("right", "ArrowRight");
 
 function update() {
   char.dx = 0;
@@ -153,17 +200,17 @@ function update() {
   // okları hareket ettir ve yerçekimi uygula
   const arrowGravity = 0.05;
   arrows.forEach(a => {
-    if(a.dy !== 0) { // düşmeye devam ediyorsa
+    if(a.dy !== 0) {
       a.x += a.dx;
       a.y += a.dy;
       a.dy += arrowGravity;
 
-      // ok platforma çarptı mı kontrol et
+      // platform çarpışması
       platforms.forEach(p => {
         if(a.x + 15 > p.x && a.x < p.x + p.width && a.y + 5 > p.y && a.y + 5 < p.y + p.height) {
-          a.y = p.y - 5; // ok platformun üstünde kalır
-          a.dy = 0;      // artık düşmez
-          a.dx = 0;      // yatay hareketi durdurmak istersen
+          a.y = p.y - 5;
+          a.dy = 0;
+          a.dx = 0;
         }
       });
     }
@@ -178,14 +225,12 @@ function draw() {
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(mapImg, 0, 0, mapImg.width, mapImg.height, 0, 0, canvas.width, canvas.height);
 
-  // karakter çizimi
   if(arrowReady) {
     ctx.drawImage(characterImgArrow, char.x, char.y, char.width, char.height);
   } else {
     ctx.drawImage(characterImg, char.x, char.y, char.width, char.height);
   }
 
-  // okları çiz
   arrows.forEach(a => {
     ctx.drawImage(arrowImg, a.x, a.y, 30, 10);
   });
@@ -201,5 +246,6 @@ mapImg.onload = () => {
   };
 };
 </script>
+
 </body>
 </html>
