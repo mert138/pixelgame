@@ -10,9 +10,9 @@
       overflow: hidden;
     }
     canvas {
-      width: 100vw;   /* ekran genişliği kadar */
-      height: 100vh;  /* ekran yüksekliği kadar */
-      image-rendering: pixelated; /* pikselleri net göster */
+      width: 100vw;   
+      height: 100vh;  
+      image-rendering: pixelated; 
     }
   </style>
 </head>
@@ -23,25 +23,112 @@
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
-    // ekran boyutunu ayarla
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    const img = new Image();
-    img.src = "pixilart-drawing.png"; // senin haritan
+    // Harita resmi
+    const mapImg = new Image();
+    mapImg.src = "pixilart-drawing.png";
 
-    img.onload = () => {
-      // resmi ekrana tam sığacak şekilde pikselli büyüt
+    // Karakter resmi
+    const characterImg = new Image();
+    characterImg.src = "karakter.png";
+
+    // Karakter konumu ve boyut
+    let char = {
+      x: 100,
+      y: canvas.height - 150, // başlangıç çim üstü
+      width: 50,
+      height: 50,
+      dx: 0,
+      dy: 0,
+      speed: 5,
+      jumpPower: 15,
+      onGround: false
+    };
+
+    const gravity = 0.8;
+
+    // Platformlar (çim ve kalenin içi) - örnek koordinatlar
+    const platforms = [
+      {x:0, y:canvas.height - 100, width: canvas.width, height: 100}, // çim
+      {x:500, y:canvas.height - 300, width: 200, height: 20}, // kalenin içi platform
+    ];
+
+    // Tuşları kontrol et
+    const keys = {
+      ArrowLeft: false,
+      ArrowRight: false,
+      ArrowUp: false
+    };
+
+    document.addEventListener('keydown', e => {
+      if(keys.hasOwnProperty(e.key)) keys[e.key] = true;
+    });
+
+    document.addEventListener('keyup', e => {
+      if(keys.hasOwnProperty(e.key)) keys[e.key] = false;
+    });
+
+    function update() {
+      // yatay hareket
+      char.dx = 0;
+      if(keys.ArrowLeft) char.dx = -char.speed;
+      if(keys.ArrowRight) char.dx = char.speed;
+
+      // zıplama
+      if(keys.ArrowUp && char.onGround) {
+        char.dy = -char.jumpPower;
+        char.onGround = false;
+      }
+
+      // yerçekimi
+      char.dy += gravity;
+
+      // yeni konum
+      char.x += char.dx;
+      char.y += char.dy;
+
+      // platform çarpışmaları
+      char.onGround = false;
+      platforms.forEach(p => {
+        if(char.x + char.width > p.x &&
+           char.x < p.x + p.width &&
+           char.y + char.height > p.y &&
+           char.y + char.height < p.y + p.height + char.dy) {
+          char.y = p.y - char.height;
+          char.dy = 0;
+          char.onGround = true;
+        }
+      });
+
+      draw();
+      requestAnimationFrame(update);
+    }
+
+    function draw() {
+      // haritayı çiz
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(
-        img,
-        0, 0, img.width, img.height,   // orijinal boyut
-        0, 0, canvas.width, canvas.height // ekrana yay
-      );
+      ctx.drawImage(mapImg, 0, 0, mapImg.width, mapImg.height, 0, 0, canvas.width, canvas.height);
+
+      // karakteri çiz
+      ctx.drawImage(characterImg, char.x, char.y, char.width, char.height);
+
+      // platformları (kontrol için) isteğe bağlı görebilirsin
+      // ctx.fillStyle = 'rgba(0,255,0,0.3)';
+      // platforms.forEach(p => ctx.fillRect(p.x, p.y, p.width, p.height));
+    }
+
+    mapImg.onload = () => {
+      characterImg.onload = () => {
+        update();
+      };
     };
   </script>
 </body>
 </html>
+
 
 
 
