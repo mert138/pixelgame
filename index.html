@@ -152,7 +152,7 @@ function update() {
   if(char.y + char.height > canvas.height) char.y = canvas.height - char.height;
 
   // okları hareket ettir ve yerçekimi uygula
-  const arrowGravity = 0.5;
+  const arrowGravity = 0.2;
   arrows.forEach(a => {
     a.x += a.dx;
     a.y += a.dy;
