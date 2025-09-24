@@ -26,18 +26,15 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    // Harita resmi
     const mapImg = new Image();
     mapImg.src = "pixilart-drawing.png";
 
-    // Karakter resmi
     const characterImg = new Image();
     characterImg.src = "karakter.png";
 
-    // Karakter konumu ve boyut
     let char = {
       x: 100,
-      y: canvas.height - 150, // başlangıç çim üstü
+      y: canvas.height - 150,
       width: 50,
       height: 50,
       dx: 0,
@@ -49,13 +46,17 @@
 
     const gravity = 0.8;
 
-    // Platformlar (çim ve kalenin içi) - örnek koordinatlar
+    // Platformlar (çim, kale bloğu)
     const platforms = [
       {x:0, y:canvas.height - 100, width: canvas.width, height: 100}, // çim
-      {x:500, y:canvas.height - 300, width: 200, height: 20}, // kalenin içi platform
+      {x:500, y:canvas.height - 300, width: 200, height: 20}, // kale platform
     ];
 
-    // Tuşları kontrol et
+    // Merdivenlar
+    const ladders = [
+      {x:550, y:canvas.height - 300, width: 50, height: 200}, // kale merdiveni
+    ];
+
     const keys = {
       ArrowLeft: false,
       ArrowRight: false,
@@ -71,19 +72,34 @@
     });
 
     function update() {
-      // yatay hareket
       char.dx = 0;
+
+      // yatay hareket
       if(keys.ArrowLeft) char.dx = -char.speed;
       if(keys.ArrowRight) char.dx = char.speed;
 
-      // zıplama
-      if(keys.ArrowUp && char.onGround) {
-        char.dy = -char.jumpPower;
-        char.onGround = false;
-      }
+      // merdivende yukarı çıkma
+      let onLadder = false;
+      ladders.forEach(l => {
+        if(char.x + char.width > l.x &&
+           char.x < l.x + l.width &&
+           char.y + char.height > l.y &&
+           char.y < l.y + l.height) {
+          onLadder = true;
+        }
+      });
 
-      // yerçekimi
-      char.dy += gravity;
+      if(onLadder && keys.ArrowUp) {
+        char.dy = -char.speed; // yukarı çık
+      } else {
+        // zıplama
+        if(keys.ArrowUp && char.onGround) {
+          char.dy = -char.jumpPower;
+          char.onGround = false;
+        }
+        // yerçekimi
+        char.dy += gravity;
+      }
 
       // yeni konum
       char.x += char.dx;
@@ -102,22 +118,28 @@
         }
       });
 
+      // ekran kenarlarına sınır
+      if(char.x < 0) char.x = 0;
+      if(char.x + char.width > canvas.width) char.x = canvas.width - char.width;
+      if(char.y < 0) char.y = 0;
+      if(char.y + char.height > canvas.height) char.y = canvas.height - char.height;
+
       draw();
       requestAnimationFrame(update);
     }
 
     function draw() {
-      // haritayı çiz
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(mapImg, 0, 0, mapImg.width, mapImg.height, 0, 0, canvas.width, canvas.height);
 
-      // karakteri çiz
       ctx.drawImage(characterImg, char.x, char.y, char.width, char.height);
 
-      // platformları (kontrol için) isteğe bağlı görebilirsin
+      // Platformları ve merdivenleri kontrol için isteğe bağlı görebilirsin
       // ctx.fillStyle = 'rgba(0,255,0,0.3)';
       // platforms.forEach(p => ctx.fillRect(p.x, p.y, p.width, p.height));
+      // ctx.fillStyle = 'rgba(255,0,0,0.3)';
+      // ladders.forEach(l => ctx.fillRect(l.x, l.y, l.width, l.height));
     }
 
     mapImg.onload = () => {
@@ -128,6 +150,7 @@
   </script>
 </body>
 </html>
+
 
 
 
